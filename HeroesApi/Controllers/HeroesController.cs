@@ -9,9 +9,17 @@ namespace HeroesApi.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 public class HeroesController : ControllerBase {
+
   [HttpGet]
-  public ActionResult<List<Hero>> GetAll() {
-    return Ok(HeroesStore.Heroes);
+  public ActionResult<List<Hero>> GetAll([FromQuery] string? universe = null) {
+    if (string.IsNullOrEmpty(universe)){
+      return Ok(HeroesStore.Heroes);
+    }
+
+    var filteredHeroes = HeroesStore.Heroes
+        .Where(h => h.Universe.ToString() == universe)
+        .ToList();
+    return Ok(filteredHeroes);
   }
 
   [HttpGet("{id}")]
@@ -44,13 +52,11 @@ public class HeroesController : ControllerBase {
   }
 
   [HttpGet("serialize")]
-  public ActionResult GetSerialize()
-  {
-    var options = new JsonSerializerOptions
-    {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        WriteIndented = true,
-        Converters = { new JsonStringEnumConverter() }
+  public ActionResult GetSerialize() {
+    var options = new JsonSerializerOptions {
+      PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+      WriteIndented = true,
+      Converters = { new JsonStringEnumConverter() }
     };
 
     var hero = new Hero {
@@ -66,11 +72,20 @@ public class HeroesController : ControllerBase {
     string serialized = JsonSerializer.Serialize(hero, options);
     var deserialized = JsonSerializer.Deserialize<Hero>(serialized, options);
 
-    return Ok(new
-    {
-        serializedJson = serialized,
-        deserializedObject = deserialized,
-        internalNotesAfterDeserialize = deserialized?.InternalNotes ?? "null - поле не было сериализовано, как и ожидалось"
+    return Ok(new {
+      serializedJson = serialized,
+      deserializedObject = deserialized,
+      internalNotesAfterDeserialize = deserialized?.InternalNotes ?? "null - поле не было сериализовано, как и ожидалось"
     });
+  }
+
+  [HttpGet("search")]
+  public ActionResult<List<Hero>> Search([FromQuery] string? name = null){
+    if (string.IsNullOrWhiteSpace(name)){
+      return BadRequest(new { Message = "Параметр name не может быть пустым!" });     }
+    var results = HeroesStore.Heroes
+        .Where(h => h.Name.Contains(name, StringComparison.OrdinalIgnoreCase))
+        .ToList();
+    return Ok(results);
   }
 }
